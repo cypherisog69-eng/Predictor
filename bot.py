@@ -33,13 +33,21 @@ def check_active_mines_sync(token):
     try:
         scraper = cloudscraper.create_scraper()
         resp = scraper.get(
-            "https://bloxflip.com/api/games/mines",
-            headers={"x-auth-token": token},
+            "https://api.bloxflip.com/games/mines",
+            headers={
+                "x-auth-token": token,
+                "User-Agent": "Mozilla/5.0",
+                "Origin": "https://bloxflip.com",
+                "Referer": "https://bloxflip.com/"
+            },
             timeout=5
         )
+        print(f"STATUS: {resp.status_code}")
+        print(f"RESPONSE: {resp.text}")
         data = resp.json()
         return data.get("game_active", False)
-    except:
+    except Exception as e:
+        print(f"ERROR: {e}")
         return None
 
 async def check_active_mines(token):
@@ -47,13 +55,19 @@ async def check_active_mines(token):
     return await loop.run_in_executor(None, check_active_mines_sync, token)
 
 def auto_click_sync(token, safe_tiles):
-    headers = {"x-auth-token": token, "Content-Type": "application/json"}
+    headers = {
+        "x-auth-token": token,
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://bloxflip.com",
+        "Referer": "https://bloxflip.com/"
+    }
     try:
         scraper = cloudscraper.create_scraper()
         results = []
         for tile in safe_tiles:
             resp = scraper.post(
-                "https://bloxflip.com/api/games/mines/action",
+                "https://api.bloxflip.com/games/mines/action",
                 headers=headers,
                 json={"cashout": False, "mine": tile - 1},
                 timeout=5
@@ -74,11 +88,17 @@ async def auto_click(token, safe_tiles):
     return await loop.run_in_executor(None, auto_click_sync, token, safe_tiles)
 
 def cashout_sync(token):
-    headers = {"x-auth-token": token, "Content-Type": "application/json"}
+    headers = {
+        "x-auth-token": token,
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://bloxflip.com",
+        "Referer": "https://bloxflip.com/"
+    }
     try:
         scraper = cloudscraper.create_scraper()
         resp = scraper.post(
-            "https://bloxflip.com/api/games/mines/action",
+            "https://api.bloxflip.com/games/mines/action",
             headers=headers,
             json={"cashout": True},
             timeout=5
