@@ -2,7 +2,8 @@ import discord
 from discord import app_commands, ui
 import random
 import os
-import aiohttp
+import asyncio
+import cloudscraper
 from datetime import datetime
 
 intents = discord.Intents.default()
@@ -12,16 +13,20 @@ tree = app_commands.CommandTree(client)
 user_tokens = {}
 MINES_METHODS = ["Balanced", "Algorithm", "Smart", "Safe", "Full Line"]
 
-async def check_active_game(token, game):
-    url = f"https://rest-bf.blox.land/games/{game}"
+def check_active_game_sync(token, game):
+    url = f"https://api.bloxflip.com/games/{game}"
     headers = {"x-auth-token": token}
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as resp:
-                data = await resp.json()
-                return data.get("game_active", False)
+        scraper = cloudscraper.create_scraper()
+        resp = scraper.get(url, headers=headers)
+        data = resp.json()
+        return data.get("game_active", False)
     except:
         return None
+
+async def check_active_game(token, game):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, check_active_game_sync, token, game)
 
 class RepeatView(ui.View):
     def __init__(self, embed):
