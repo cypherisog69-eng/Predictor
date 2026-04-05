@@ -29,6 +29,23 @@ async def get_balance(token):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, get_balance_sync, token)
 
+def check_active_mines_sync(token):
+    try:
+        scraper = cloudscraper.create_scraper()
+        resp = scraper.get(
+            "https://bloxflip.com/api/games/mines",
+            headers={"x-auth-token": token},
+            timeout=5
+        )
+        data = resp.json()
+        return data.get("game_active", False)
+    except:
+        return None
+
+async def check_active_mines(token):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, check_active_mines_sync, token)
+
 def auto_click_sync(token, safe_tiles):
     headers = {"x-auth-token": token, "Content-Type": "application/json"}
     try:
@@ -129,6 +146,18 @@ class MinesSettingsModal(ui.Modal, title="Mines Settings"):
             await interaction.response.send_message("❌ Enter a number only.", ephemeral=True)
             return
 
+        await interaction.response.defer(ephemeral=True)
+
+        token = user_tokens[interaction.user.id]
+        active = await check_active_mines(token)
+
+        if active is None:
+            await interaction.followup.send("❌ Could not reach BloxFlip. Try again.", ephemeral=True)
+            return
+        if not active:
+            await interaction.followup.send("😭 Start a Mines game on BloxFlip first!", ephemeral=True)
+            return
+
         method = self.method
         safe_tiles = []
 
@@ -164,7 +193,7 @@ class MinesSettingsModal(ui.Modal, title="Mines Settings"):
         embed.set_footer(text="🤑 = Safe Point • 😭 = BOOM")
         embed.timestamp = datetime.now()
 
-        await interaction.response.send_message(embed=embed, view=MinesActionView(safe_tiles, embed))
+        await interaction.followup.send(embed=embed, view=MinesActionView(safe_tiles, embed))
 
 class MinesMethodSelect(ui.View):
     def __init__(self):
@@ -215,7 +244,6 @@ async def mines_cmd(interaction: discord.Interaction):
     if interaction.user.id not in user_tokens:
         await interaction.response.send_message("❌ Use /free-connect first.", ephemeral=True)
         return
-
     embed = discord.Embed(title="💣 Mines", description="Select a method below.", color=0xff8800)
     await interaction.response.send_message(embed=embed, view=MinesMethodSelect(), ephemeral=True)
 
