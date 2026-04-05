@@ -1,6 +1,3 @@
-Here's the full `bot.py` with working Mines Auto Click and Cash Out:
-
-```python
 import discord
 from discord import app_commands, ui
 import random
@@ -229,6 +226,3 @@ async def on_ready():
 
 token = os.getenv("DISCORD_TOKEN")
 client.run(token)
-```
-
-This has everything for Mines — method select, click count, Auto Click and Cash Out buttons. Test it and let me know if it works, then we'll add Towers! 🤑
