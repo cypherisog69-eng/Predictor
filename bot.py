@@ -15,11 +15,18 @@ MINES_METHODS = ["Balanced", "Algorithm", "Smart", "Safe", "Full Line"]
 OWNER_ID = 1380042914922758224
 
 def get_balance_sync(token):
-    url = "https://api.bloxflip.com/user"
-    headers = {"x-auth-token": token}
     try:
         scraper = cloudscraper.create_scraper()
-        resp = scraper.get(url, headers=headers, timeout=5)
+        resp = scraper.get(
+            "https://api.bloxflip.com/user",
+            headers={
+                "x-auth-token": token,
+                "User-Agent": "Mozilla/5.0",
+                "Origin": "https://bloxflip.com",
+                "Referer": "https://bloxflip.com/"
+            },
+            timeout=5
+        )
         data = resp.json()
         return data.get("wallet", "Unknown")
     except:
@@ -29,49 +36,25 @@ async def get_balance(token):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, get_balance_sync, token)
 
-def check_active_mines_sync(token):
-    try:
-        scraper = cloudscraper.create_scraper()
-        resp = scraper.get(
-            "https://api.bloxflip.com/games/mines",
-            headers={
-                "x-auth-token": token,
-                "User-Agent": "Mozilla/5.0",
-                "Origin": "https://bloxflip.com",
-                "Referer": "https://bloxflip.com/"
-            },
-            timeout=5
-        )
-        print(f"STATUS: {resp.status_code}")
-        print(f"RESPONSE: {resp.text}")
-        data = resp.json()
-        return data.get("game_active", False)
-    except Exception as e:
-        print(f"ERROR: {e}")
-        return None
-
-async def check_active_mines(token):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, check_active_mines_sync, token)
-
 def auto_click_sync(token, safe_tiles):
-    headers = {
-        "x-auth-token": token,
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://bloxflip.com",
-        "Referer": "https://bloxflip.com/"
-    }
     try:
         scraper = cloudscraper.create_scraper()
         results = []
         for tile in safe_tiles:
             resp = scraper.post(
                 "https://api.bloxflip.com/games/mines/action",
-                headers=headers,
+                headers={
+                    "x-auth-token": token,
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0",
+                    "Origin": "https://bloxflip.com",
+                    "Referer": "https://bloxflip.com/mines"
+                },
                 json={"cashout": False, "mine": tile - 1},
                 timeout=5
             )
+            print(f"CLICK STATUS: {resp.status_code}")
+            print(f"CLICK RESPONSE: {resp.text}")
             data = resp.json()
             if data.get("game_exploded", False):
                 results.append(f"💥 Hit a mine on tile {tile}!")
@@ -81,6 +64,7 @@ def auto_click_sync(token, safe_tiles):
                 results.append(f"✅ Tile {tile} safe! ({multi}x)")
         return results
     except Exception as e:
+        print(f"CLICK ERROR: {e}")
         return [f"❌ Error: {str(e)}"]
 
 async def auto_click(token, safe_tiles):
@@ -88,21 +72,22 @@ async def auto_click(token, safe_tiles):
     return await loop.run_in_executor(None, auto_click_sync, token, safe_tiles)
 
 def cashout_sync(token):
-    headers = {
-        "x-auth-token": token,
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://bloxflip.com",
-        "Referer": "https://bloxflip.com/"
-    }
     try:
         scraper = cloudscraper.create_scraper()
         resp = scraper.post(
             "https://api.bloxflip.com/games/mines/action",
-            headers=headers,
+            headers={
+                "x-auth-token": token,
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0",
+                "Origin": "https://bloxflip.com",
+                "Referer": "https://bloxflip.com/mines"
+            },
             json={"cashout": True},
             timeout=5
         )
+        print(f"CASHOUT STATUS: {resp.status_code}")
+        print(f"CASHOUT RESPONSE: {resp.text}")
         data = resp.json()
         won = data.get("won_amount", None)
         multiplier = data.get("multiplier", None)
@@ -110,6 +95,7 @@ def cashout_sync(token):
             return f"🤑 Cashed out! Won **{round(won, 2)}** RC at **{round(multiplier, 2)}x**!"
         return "✅ Cashed out!"
     except Exception as e:
+        print(f"CASHOUT ERROR: {e}")
         return f"❌ Error: {str(e)}"
 
 async def cashout(token):
@@ -166,18 +152,6 @@ class MinesSettingsModal(ui.Modal, title="Mines Settings"):
             await interaction.response.send_message("❌ Enter a number only.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
-
-        token = user_tokens[interaction.user.id]
-        active = await check_active_mines(token)
-
-        if active is None:
-            await interaction.followup.send("❌ Could not reach BloxFlip. Try again.", ephemeral=True)
-            return
-        if not active:
-            await interaction.followup.send("😭 Start a Mines game on BloxFlip first!", ephemeral=True)
-            return
-
         method = self.method
         safe_tiles = []
 
@@ -213,7 +187,7 @@ class MinesSettingsModal(ui.Modal, title="Mines Settings"):
         embed.set_footer(text="🤑 = Safe Point • 😭 = BOOM")
         embed.timestamp = datetime.now()
 
-        await interaction.followup.send(embed=embed, view=MinesActionView(safe_tiles, embed))
+        await interaction.response.send_message(embed=embed, view=MinesActionView(safe_tiles, embed))
 
 class MinesMethodSelect(ui.View):
     def __init__(self):
